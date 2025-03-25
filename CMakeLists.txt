@@ -34,6 +34,20 @@ if(ENABLE_QT)
                AUTORCC ON)
 endif()
 
+string(REPLACE "-Werror" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+string(REPLACE "-Werror" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-error")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error")
+
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE
+  -Wno-error
+  -Wno-shadow
+  -Wno-conversion
+  -Wno-sign-conversion
+  -Wno-unused-parameter
+)
+
 target_sources(${CMAKE_PROJECT_NAME} PRIVATE
   ./src/pch.h
   ./src/obs-multi-rtmp.h

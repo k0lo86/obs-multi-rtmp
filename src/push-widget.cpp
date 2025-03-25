@@ -8,7 +8,6 @@
 #include <QApplication>
 #include "obs.hpp"
 
-
 class IOBSOutputEventHanlder
 {
 public:
@@ -32,7 +31,8 @@ public:
         auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
         thiz->OnStopping();
     }
-    virtual void OnStopped(int) {}
+
+    virtual void OnStopped(int64_t code) {}
     static void OnOutputStopped(void* x, calldata_t* param)
     {
         auto thiz = static_cast<IOBSOutputEventHanlder*>(x);
@@ -91,32 +91,30 @@ public:
     }
 };
 
-
 class PushWidgetImpl : public PushWidget, public IOBSOutputEventHanlder
 {
     std::string targetid_;
     OutputTargetConfigPtr config_;
 
-    QPushButton* btn_ = 0;
-    QLabel* name_ = 0;
-    QLabel* msg_ = 0;
+    QPushButton* btn_ = nullptr;
+    QLabel* name_ = nullptr;
+    QLabel* msg_ = nullptr;
 
     using clock = std::chrono::steady_clock;
     clock::time_point begin_time_;
     clock::time_point last_info_time_;
     uint64_t total_frames_ = 0;
     uint64_t total_bytes_ = 0;
-    QTimer* timer_ = 0;
+    QTimer* timer_ = nullptr;
 
-    QPushButton* edit_btn_ = 0;
-    QPushButton* remove_btn_ = 0;
+    QPushButton* edit_btn_ = nullptr;
+    QPushButton* remove_btn_ = nullptr;
 
-    obs_output_t* output_ = 0;
+    obs_output_t* output_ = nullptr;
     bool using_main_video_encoder_ = true;
     bool using_main_audio_encoder_ = true;
-    obs_view_t* scene_view_ = 0;
+    obs_view_t* scene_view_ = nullptr;
     bool isUseDelay_ = false;
-
 
     bool PrepareOutputService()
     {
@@ -132,8 +130,8 @@ class PushWidgetImpl : public PushWidget, public IOBSOutputEventHanlder
         auto protocolInfo = GetProtocolInfos()->GetInfo(config_->protocol.c_str());
         assert(protocolInfo);
         if (!protocolInfo) {
-        	blog(LOG_ERROR, TAG "Invalid protocol \"%s\", maybe broken config file.", config_->protocol.c_str());
-        	return false;
+            blog(LOG_ERROR, TAG "Invalid protocol \"%s\", maybe broken config file.", config_->protocol.c_str());
+            return false;
         }
         auto service_id = protocolInfo->serviceId;
 
@@ -435,9 +433,9 @@ class PushWidgetImpl : public PushWidget, public IOBSOutputEventHanlder
             snprintf(strDuration, sizeof(strDuration), "%02d:%02d:%02d", (int)hh.count(), (int)mm.count(), (int)ss.count());
 
             char strFps[32] = { 0 };
-            snprintf(strFps, sizeof(strFps), "%d FPS", static_cast<int>(std::round((new_frames - total_frames_) / interval)));
+            snprintf(strFps, sizeof(strFps), "%d FPS", static_cast<int>(std::round(static_cast<double>(new_frames - total_frames_) / interval)));
 
-            auto bps = (new_bytes - total_bytes_) * 8 / interval;
+            auto bps = static_cast<double>((new_bytes - total_bytes_) * 8) / interval;
             auto strBps = [&]()-> std::string {
                 if (bps > 0)
                 {
@@ -554,9 +552,9 @@ public:
             auto protocolInfo = GetProtocolInfos()->GetInfo(config_->protocol.c_str());
             assert(protocolInfo);
             if (!protocolInfo) {
-	        	blog(LOG_ERROR, TAG "Invalid protocol \"%s\", maybe broken config file.", config_->protocol.c_str());
-	        	protocolInfo = GetProtocolInfos()->GetList();
-	        }
+                blog(LOG_ERROR, TAG "Invalid protocol \"%s\", maybe broken config file.", config_->protocol.c_str());
+                protocolInfo = GetProtocolInfos()->GetList();
+            }
             auto output_id = protocolInfo->outputId;
 
             blog(LOG_DEBUG, "Streaming to output: %s", output_id);
@@ -572,7 +570,8 @@ public:
             if (profileConfig) {
                 bool useDelay = config_get_bool(profileConfig, "Output", "DelayEnable");
                 bool preserveDelay = config_get_bool(profileConfig, "Output", "DelayPreserve");
-                int delaySec = config_get_int(profileConfig, "Output", "DelaySec");
+                int64_t delaySec64 = config_get_int(profileConfig, "Output", "DelaySec");
+                uint32_t delaySec = static_cast<uint32_t>(std::max(int64_t(0), delaySec64));
                 obs_output_set_delay(output_,
                     useDelay ? delaySec : 0,
                     preserveDelay ? OBS_OUTPUT_DELAY_PRESERVE : 0
@@ -846,7 +845,7 @@ public:
         });
     }
 
-    void OnStopped(int code) override
+    void OnStopped(int64_t code) override
     {
         GetGlobalService().RunInUIThread([this, code]() {
             ResetInfo();
@@ -884,6 +883,7 @@ public:
         ReleaseOutputSceneView();
     }
 };
+
 PushWidget* createPushWidget(const std::string& targetid, QWidget* parent) {
     blog(LOG_INFO, "obs-multi-rtmp: Creating PushWidget - Start");
     try {
@@ -898,6 +898,3 @@ PushWidget* createPushWidget(const std::string& targetid, QWidget* parent) {
     blog(LOG_ERROR, "obs-multi-rtmp: Failed to create PushWidget");
     return nullptr;
 }
-// PushWidget* createPushWidget(const std::string& targetid, QWidget* parent) {
-//     return new PushWidgetImpl(targetid, parent);
-// }

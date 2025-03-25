@@ -317,18 +317,18 @@ bool obs_module_load()
 
     obs_frontend_add_event_callback(
         [](enum obs_frontend_event event, void *private_data) {
-            auto dock = static_cast<MultiOutputWidget*>(private_data);
+            auto inner_dock = static_cast<MultiOutputWidget*>(private_data);
 
-            for(auto x: dock->GetAllPushWidgets())
+            for(auto x: inner_dock->GetAllPushWidgets())
                 x->OnOBSEvent(event);
 
             if (event == obs_frontend_event::OBS_FRONTEND_EVENT_EXIT)
-            {   
-                dock->SaveConfig();
+            {
+                inner_dock->SaveConfig();
             }
             else if (event == obs_frontend_event::OBS_FRONTEND_EVENT_PROFILE_CHANGED)
             {
-                dock->LoadConfig();
+                inner_dock->LoadConfig();
             }
         }, dock
     );
